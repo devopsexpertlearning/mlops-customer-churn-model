@@ -1,0 +1,48 @@
+replicaCount: 2
+
+image:
+  repository: customer-churn-api
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+config:
+  modelPath: "models/model.pkl"
+  preprocessorPath: "models/preprocessor.pkl"
+  logLevel: "INFO"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: customer-churn.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10

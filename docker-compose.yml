@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:alpine
@@ -14,9 +12,10 @@ services:
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mluser -d mldb"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   minio:
     image: minio/minio:latest
@@ -32,9 +31,10 @@ services:
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Simple bucket creation helper
   createbuckets:
@@ -76,6 +76,34 @@ services:
       --host 0.0.0.0
       --port 5000
       "
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    image: customer-churn-api:latest
+    container_name: mlops-customer-churn-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=models/model.pkl
+      - PREPROCESSOR_PATH=models/preprocessor.pkl
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./models:/app/models
+      - ./configs:/app/configs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
 
 #   prometheus:
 #     image: prom/prometheus:latest

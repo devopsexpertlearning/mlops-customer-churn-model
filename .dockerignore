@@ -1,0 +1,42 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Git
+.git/
+.github/
+
+# DVC
+.dvc/
+.dvcignore
+.dvc/cache/
+.dvc/tmp/
+
+# Python Cache & Build Artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Local Logs / Metadata / Configs
+*.log
+.env
+mlruns/
+mlflow.db
+
+# Data & Output Artifacts (baked in or not needed in runtime)
+data/
+artifacts/
+tests/
+notebooks/

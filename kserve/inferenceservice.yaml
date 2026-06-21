@@ -1,0 +1,28 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: customer-churn
+  namespace: customer-churn
+spec:
+  predictor:
+    containers:
+    - name: kserve-container
+      image: customer-churn-api:latest
+      imagePullPolicy: IfNotPresent
+      ports:
+      - containerPort: 8000
+        protocol: TCP
+      env:
+      - name: MODEL_PATH
+        value: "models/model.pkl"
+      - name: PREPROCESSOR_PATH
+        value: "models/preprocessor.pkl"
+      - name: LOG_LEVEL
+        value: "INFO"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi

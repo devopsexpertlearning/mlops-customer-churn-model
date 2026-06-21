@@ -25,10 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY src/ /app/src
+COPY configs/ /app/configs
+COPY models/ /app/models
 COPY setup.py /app/
 
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 EXPOSE 8000
 

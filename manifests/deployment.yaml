@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-churn-api
+  namespace: customer-churn
+  labels:
+    app: customer-churn-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: customer-churn-api
+  template:
+    metadata:
+      labels:
+        app: customer-churn-api
+    spec:
+      containers:
+      - name: api
+        image: customer-churn-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: MODEL_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: customer-churn-config
+              key: MODEL_PATH
+        - name: PREPROCESSOR_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: customer-churn-config
+              key: PREPROCESSOR_PATH
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: customer-churn-config
+              key: LOG_LEVEL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi

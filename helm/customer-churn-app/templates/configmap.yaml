@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "customer-churn-app.fullname" . }}-config
+  labels:
+    {{- include "customer-churn-app.labels" . | nindent 4 }}
+data:
+  MODEL_PATH: {{ .Values.config.modelPath | quote }}
+  PREPROCESSOR_PATH: {{ .Values.config.preprocessorPath | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
