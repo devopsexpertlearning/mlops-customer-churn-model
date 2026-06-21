@@ -1,0 +1,15 @@
+experimental:
+  docker:
+    nodes:
+      - name: worker-1
+        volumes:
+          - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"
+      - name: worker-2
+        volumes:
+          - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"
+      - name: worker-3
+        volumes:
+          - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"
+      - name: worker-4
+        volumes:
+          - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"

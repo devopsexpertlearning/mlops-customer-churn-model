@@ -40,3 +40,21 @@ data/
 artifacts/
 tests/
 notebooks/
+
+# Infrastructure & Configuration files
+docker-compose.yml
+docs/
+dvc.lock
+dvc.yaml
+helm/
+helm-v3.21.2-linux-amd64.tar.gz
+kserve/
+kubeflow/
+manifests/
+monitoring/
+params.yaml
+pipelines/
+requirements.txt
+vcluster.yaml
+containerd-config.toml
+

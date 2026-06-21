@@ -163,7 +163,82 @@ Run the unit test suite to verify code format, styles, and test functionality:
 * **DVC Stage Evaluation**: Configured evaluation stage tracking test split data, model state, and outputting local metrics.
 
 ### 4.9 MLflow Tracking (Phase 10)
-* **MLflow Tracking Integration** ([train.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/train.py) & [evaluate.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/evaluate.py)): Configures the scripts to log run parameters, performance metrics, and model objects to the local MLflow tracking server (backed by PostgreSQL and MinIO S3 storage). The pipeline automatically shares the active run ID across independent stages via [mlflow_run_id.txt](file:///home/ubuntu/mlops/mlops-customer-churn-model/artifacts/mlflow_run_id.txt).
+* **MLflow Tracking Integration** ([train.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/train.py) & [evaluate.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/evaluate.py)): Configures the scripts to log run parameters, performance metrics, and model objects to the local MLflow tracking server (backed by PostgreSQL and MinIO S3 storage). The pipeline automatically shares the active run ID across independent stages via [mlflow_run_id.txt](file:///home/ubuntu/mlops/mlops-customer-churn-model/artifacts/mlflow_run_id.txt).### 4.10 MLflow Model Registry (Phase 11)
+* **Model Registration** ([register_model.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/register_model.py)): Connects to the MLflow server, registers the new model candidate, compares its F1-score against the model currently holding the `production` alias, and promotes it using the modern Model Aliases API (not deprecated stages) if the performance is strictly improved.
+* **Output Report**: Emits the outcome to [registration_status.json](file:///home/ubuntu/mlops/mlops-customer-churn-model/artifacts/registration_status.json).
 
+### 4.11 S3 and PostgreSQL Backend (Phases 12 & 13)
+* **Infrastructure Orchestration** ([docker-compose.yml](file:///home/ubuntu/mlops/mlops-customer-churn-model/docker-compose.yml)): Defines local services (PostgreSQL for metadata storage, MinIO for S3-compatible artifact storage, and the serving API) with restart policies and healthchecks.
+* **Database Target**: postgres alpine volume maps to `/var/lib/postgresql` (resolving Alpine-specific permission constraints).
+* **Auto-Bucket Helper**: A helper service `createbuckets` initializes MinIO buckets (`mlflow-artifacts` and `dvc-cache`) immediately upon MinIO health confirmation.
 
+### 4.12 Kubeflow Orchestration (Phases 14, 15 & 16)
+* **Kubernetes Local Engine**: Documented local vCluster environment setup and Kubeflow Standalone deployment.
+* **KFP v2 Python Components** ([kubeflow/components/](file:///home/ubuntu/mlops/mlops-customer-churn-model/kubeflow/components/)): Defined 6 custom KFP v2 components (mapping to raw pipeline stages) with environment overrides.
+* **Pipeline Compiler** ([kubeflow/pipeline.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/kubeflow/pipeline.py)): Compiled the pipeline DAG into the ready-to-run [kubeflow/pipeline.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/kubeflow/pipeline.yaml).
 
+### 4.13 FastAPI Model Server & Dockerization (Phases 17 & 18)
+* **API Server** ([serve.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/serve.py)): Implements prediction endpoints `/predict`, `/predict/batch`, health check `/health`, and Prometheus `/metrics`.
+* **Multi-Stage Dockerfile** ([Dockerfile](file:///home/ubuntu/mlops/mlops-customer-churn-model/Dockerfile)): Compiles python dependencies in a builder stage and copies the virtualenv, configurations, and baseline model artifacts into a minimal runner image.
+* **Ignore Caches** ([.dockerignore](file:///home/ubuntu/mlops/mlops-customer-churn-model/.dockerignore) & [.dvcignore](file:///home/ubuntu/mlops/mlops-customer-churn-model/.dvcignore)): Reduces the Docker build context size from **2.03 GB** to **507.4 kB** by ignoring local virtualenvs, DVC cache, raw datasets, and temporary compilation objects.
+
+### 4.14 Kubernetes Deployments & Helm Charting (Phases 19, 20 & 21)
+* **K8s Manifests** ([manifests/](file:///home/ubuntu/mlops/mlops-customer-churn-model/manifests/)): Includes namespace configuration, configmaps, deployments (with resource bounds and health checks), routing services, and ingress setups.
+* **Helm Charts** ([helm/customer-churn-app/](file:///home/ubuntu/mlops/mlops-customer-churn-model/helm/customer-churn-app/)): Parameterizes resource specifications, replica sizes, and environment variables into configurable `Chart.yaml` and `values.yaml` templates.
+* **KServe Serving** ([kserve/inferenceservice.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/kserve/inferenceservice.yaml)): Defines a serverless Knative InferenceService routing predictions directly to our custom API container.
+
+### 4.15 Observability & Monitoring (Phases 22 & 23)
+* **Prometheus Targets** ([monitoring/prometheus.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/monitoring/prometheus.yaml)): Configures the scrape agent to poll `/metrics` on our API service inside the compose network.
+* **Grafana Dashboards** ([monitoring/grafana/dashboards/dashboard.json](file:///home/ubuntu/mlops/mlops-customer-churn-model/monitoring/grafana/dashboards/dashboard.json)): Visualizes operational latency, request error rates, throughput, and business indicators (churn rate).
+
+### 4.16 Data Drift & Retraining Pipeline (Phases 24 & 25)
+* **Drift Detector** ([drift_detector.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/drift_detector.py)): Compares live incoming inference data with training baselines using Evidently AI's data drift presets. Exports HTML/JSON drift summaries to `artifacts/`.
+* **Retraining Pipeline** ([retrain.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/retrain.py)): Checks drift proportions and runs `dvc repro` in a subprocess to run the retraining pipeline if drift exceeds the 50% threshold.
+
+### 4.17 CI/CD Automation & E2E Validation (Phases 26 & 27)
+* **GitHub Actions** ([.github/workflows/ci.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/.github/workflows/ci.yaml)): Triggers code styling checks (Black), code auditing (Flake8), static typing analysis (MyPy), unit test executions, and a Docker compile check on every commit.
+* **E2E Integration** ([tests/test_e2e.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/tests/test_e2e.py)): Orchestrates the complete pipeline loop from raw data download to metric evaluation, registration, serving client inference, and drift checks.
+
+---
+
+## 5. Developer CLI Reference (Makefile)
+
+The project includes an enterprise-grade `Makefile` providing shortcuts for standard local activities:
+
+```bash
+# Display help and available commands
+make help
+
+# Set up local virtual environment
+make setup
+
+# Install dependencies and local package in dev mode
+make install
+
+# Format code with Black
+make format
+
+# Run flake8 and mypy checks
+make lint
+
+# Run pytest unit and integration test suite
+make test
+
+# Execute local DVC pipeline
+make pipeline
+
+# Build serving Docker image (leverages .dockerignore)
+make build-image
+
+# Run serving container locally on port 8000
+make run-container
+
+# Stop and remove local serving container
+make stop-container
+
+# Remove temporary python build and cache directories
+make clean
+
+# Remove serving container and image
+make docker-clean
+```

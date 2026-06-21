@@ -1,0 +1,9 @@
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+fastapi>=0.110.0
+gunicorn>=21.2.0
+PyYAML>=6.0.0
+prometheus-client>=0.20.0
+python-json-logger>=2.0.7

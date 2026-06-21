@@ -33,8 +33,9 @@ setup:
 	@echo "Virtual environment created. Run 'source $(VENV)/bin/activate' to activate."
 
 install:
-	$(PIP) install -r requirements.txt
-	$(PIP) install -e .
+	$(PIP) install --upgrade pip setuptools wheel
+	$(PIP) install -e .[train,dev]
+
 
 format:
 	$(BIN)/black src tests setup.py

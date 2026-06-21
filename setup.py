@@ -15,14 +15,28 @@ setup(
         "xgboost>=2.0.0",
         "fastapi>=0.110.0",
         "uvicorn>=0.28.0",
-        "mlflow>=2.11.0",
-        "dvc>=3.48.0",
-        "evidently>=0.4.15",
-        "psycopg2-binary>=2.9.9",
-        "sqlalchemy>=2.0.27",
-        "boto3>=1.34.0",
+        "gunicorn>=21.2.0",
+        "PyYAML>=6.0.0",
+
         "prometheus-client>=0.20.0",
-        "kfp>=2.7.0",
         "python-json-logger>=2.0.7",
     ],
+    extras_require={
+        "train": [
+            "mlflow>=2.11.0",
+            "dvc>=3.48.0",
+            "evidently>=0.4.15",
+            "psycopg2-binary>=2.9.9",
+            "sqlalchemy>=2.0.27",
+            "boto3>=1.34.0",
+            "kfp>=2.7.0",
+        ],
+        "dev": [
+            "pytest>=8.0.0",
+            "black>=24.2.0",
+            "flake8>=7.0.0",
+            "mypy>=1.8.0",
+        ],
+    },
 )
+
