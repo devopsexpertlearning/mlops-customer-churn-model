@@ -9,3 +9,5 @@ Contains settings for GitHub repository configuration, issue templates, and cont
 
 ## Interaction
 - Interacts with GitHub runner environments to execute code validation and test deployment.
+
+- Use this for ci/cd
