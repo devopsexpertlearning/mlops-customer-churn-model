@@ -13,3 +13,7 @@ experimental:
       - name: worker-4
         volumes:
           - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"
+      - name: worker-5
+        volumes:
+          - "/home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml:/etc/containerd/config.toml"
+

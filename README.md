@@ -104,21 +104,20 @@ python3 -m venv .venv
 # Activate virtualenv
 source .venv/bin/activate
 
-# Install package dependencies and local package in editable mode
-.venv/bin/pip install -r requirements.txt -e .
+# Install package in editable mode with development & training dependencies
+make install
 ```
 
 ### Verification
 Run the unit test suite to verify code format, styles, and test functionality:
 ```bash
 # Run unit tests
-.venv/bin/pytest tests/
+make test
 
 # Run formatters and linters
-.venv/bin/black --check src tests setup.py
-.venv/bin/flake8 src tests setup.py
-.venv/bin/mypy src tests setup.py
+make lint
 ```
+
 
 ---
 
@@ -178,14 +177,16 @@ Run the unit test suite to verify code format, styles, and test functionality:
 * **Pipeline Compiler** ([kubeflow/pipeline.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/kubeflow/pipeline.py)): Compiled the pipeline DAG into the ready-to-run [kubeflow/pipeline.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/kubeflow/pipeline.yaml).
 
 ### 4.13 FastAPI Model Server & Dockerization (Phases 17 & 18)
-* **API Server** ([serve.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/serve.py)): Implements prediction endpoints `/predict`, `/predict/batch`, health check `/health`, and Prometheus `/metrics`.
-* **Multi-Stage Dockerfile** ([Dockerfile](file:///home/ubuntu/mlops/mlops-customer-churn-model/Dockerfile)): Compiles python dependencies in a builder stage and copies the virtualenv, configurations, and baseline model artifacts into a minimal runner image.
-* **Ignore Caches** ([.dockerignore](file:///home/ubuntu/mlops/mlops-customer-churn-model/.dockerignore) & [.dvcignore](file:///home/ubuntu/mlops/mlops-customer-churn-model/.dvcignore)): Reduces the Docker build context size from **2.03 GB** to **507.4 kB** by ignoring local virtualenvs, DVC cache, raw datasets, and temporary compilation objects.
+* **API Server** ([serve.py](file:///home/ubuntu/mlops/mlops-customer-churn-model/src/customer_churn/serve.py)): Implements prediction endpoints `/predict`, `/predict/batch`, health check `/health`, and Prometheus `/metrics`. Exposes custom logging and metrics.
+* **Optimized Dockerfile** ([Dockerfile](file:///home/ubuntu/mlops/mlops-customer-churn-model/Dockerfile)): Separates training and serving dependencies via [requirements-serve.txt](file:///home/ubuntu/mlops/mlops-customer-churn-model/requirements-serve.txt). It installs only serving dependencies, uninstalls heavy CUDA/Nvidia GPU libraries (`nvidia-nccl-cu12`) to keep it CPU-only, and copies only the virtualenv (`/opt/venv`), `configs/`, and `models/` into the runner stage. This secures the container by removing raw python source code (`src/` and `setup.py`) and **reduces the image size from 2.04 GB to 695 MB**.
+* **Ignore Caches** ([.dockerignore](file:///home/ubuntu/mlops/mlops-customer-churn-model/.dockerignore)): Minimizes the build context to under 500 kB by ignoring local datasets (`data/`), tests, documentation, Helm charts, and local caches.
 
 ### 4.14 Kubernetes Deployments & Helm Charting (Phases 19, 20 & 21)
-* **K8s Manifests** ([manifests/](file:///home/ubuntu/mlops/mlops-customer-churn-model/manifests/)): Includes namespace configuration, configmaps, deployments (with resource bounds and health checks), routing services, and ingress setups.
+* **vCluster Multi-Node Topology** ([vcluster.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/vcluster.yaml)): Establishes a 4-node virtual cluster using the Docker driver. Overcomes Ubuntu Noble containerd CRI issues on WSL2 by mounting [containerd-config.toml](file:///home/ubuntu/mlops/mlops-customer-churn-model/containerd-config.toml) to enable the containerd CRI plugin.
+* **K8s Manifests** ([manifests/](file:///home/ubuntu/mlops/mlops-customer-churn-model/manifests/)): Includes namespace configuration, configmaps, deployments, routing services, and ingress setups.
 * **Helm Charts** ([helm/customer-churn-app/](file:///home/ubuntu/mlops/mlops-customer-churn-model/helm/customer-churn-app/)): Parameterizes resource specifications, replica sizes, and environment variables into configurable `Chart.yaml` and `values.yaml` templates.
-* **KServe Serving** ([kserve/inferenceservice.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/kserve/inferenceservice.yaml)): Defines a serverless Knative InferenceService routing predictions directly to our custom API container.
+* **KServe Serving** ([kserve/inferenceservice.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/kserve/inferenceservice.yaml)): Defines a serverless Knative InferenceService deployed in the virtual cluster after registering the KServe CRDs.
+
 
 ### 4.15 Observability & Monitoring (Phases 22 & 23)
 * **Prometheus Targets** ([monitoring/prometheus.yaml](file:///home/ubuntu/mlops/mlops-customer-churn-model/monitoring/prometheus.yaml)): Configures the scrape agent to poll `/metrics` on our API service inside the compose network.
@@ -242,3 +243,69 @@ make clean
 # Remove serving container and image
 make docker-clean
 ```
+
+---
+
+## 6. vCluster Kubernetes Deployment Guide
+
+This section describes how to set up the multi-node vCluster and deploy the serving container and KServe InferenceService.
+
+### Step 1: Create the 4-Node vCluster
+We use the Docker driver with a custom configuration to provision 4 worker nodes and mount containerd settings (enabling the CRI plugin on WSL2):
+```bash
+# Create the cluster pointing to vcluster.yaml configuration
+vcluster create my-cluster --driver docker --connect=false -f vcluster.yaml
+```
+
+### Step 2: Connect to the vCluster Context
+Set the active context in your local shell to point to the virtual cluster:
+```bash
+vcluster connect my-cluster
+```
+Verify the nodes are running and ready:
+```bash
+kubectl get nodes -o wide
+```
+
+### Step 3: Load the Serving Image onto Worker Nodes
+Since local containers do not share the host's image store without containerd storage enabled on the host, import the built image directly to all 4 worker nodes:
+```bash
+# Build the optimized image first
+make build-image
+
+# Import the image to all 4 containerd runtime node containers
+for node in worker-1 worker-2 worker-3 worker-4; do
+  echo "Importing to $node..."
+  docker save customer-churn-api:latest | docker exec -i vcluster.node.my-cluster.$node ctr -n k8s.io images import -
+done
+```
+
+### Step 4: Deploy the Application Manifests
+Deploy the namespace, service, ingress, configmap, and deployment to the vCluster:
+```bash
+kubectl apply -f manifests/
+```
+Verify the pods are running and scheduled onto the worker nodes:
+```bash
+kubectl get pods -n customer-churn
+```
+
+### Step 5: Install KServe CRDs
+Install the required KServe Custom Resource Definitions via Helm:
+```bash
+helm install kserve-crd oci://ghcr.io/kserve/charts/kserve-crd \
+  --version v0.18.0 \
+  --namespace kserve \
+  --create-namespace
+```
+
+### Step 6: Deploy KServe InferenceService
+Apply the serverless KServe InferenceService specification:
+```bash
+kubectl apply -f kserve/inferenceservice.yaml
+```
+Verify the InferenceService registration:
+```bash
+kubectl get inferenceservice -n customer-churn
+```
+
