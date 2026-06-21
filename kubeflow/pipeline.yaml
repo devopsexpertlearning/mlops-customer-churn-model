@@ -1,0 +1,430 @@
+# PIPELINE DEFINITION
+# Name: customer-churn-prediction-pipeline
+# Description: End-to-end ML pipeline: ingest, validate, preprocess, feature engineer, train XGBoost, and evaluate.
+# Inputs:
+#    ingest_url: str [Default: 'https://raw.githubusercontent.com/alexeygrigorev/mlbookcamp-code/master/chapter-03-churn-prediction/WA_Fn-UseC_-Telco-Customer-Churn.csv']
+components:
+  comp-evaluate-model:
+    executorLabel: exec-evaluate-model
+    inputDefinitions:
+      parameters:
+        train_output:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-feature-engineering:
+    executorLabel: exec-feature-engineering
+    inputDefinitions:
+      parameters:
+        preprocess_paths:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-ingest-data:
+    executorLabel: exec-ingest-data
+    inputDefinitions:
+      parameters:
+        ingest_url:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-preprocess-data:
+    executorLabel: exec-preprocess-data
+    inputDefinitions:
+      parameters:
+        raw_path:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-train-model:
+    executorLabel: exec-train-model
+    inputDefinitions:
+      parameters:
+        feature_paths:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-validate-data:
+    executorLabel: exec-validate-data
+    inputDefinitions:
+      parameters:
+        raw_path:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-evaluate-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - evaluate_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef evaluate_model(train_output: str) -> str:\n    \"\"\"Evaluates\
+          \ model and produces metrics JSON report.\"\"\"\n    import json\n    import\
+          \ os\n    import pickle\n    import pandas as pd\n    from sklearn.metrics\
+          \ import (\n        accuracy_score,\n        f1_score,\n        precision_score,\n\
+          \        recall_score,\n        roc_auc_score,\n    )\n\n    with open(train_output,\
+          \ \"r\") as f:\n        paths = json.load(f)\n\n    test_df = pd.read_csv(paths[\"\
+          test_path\"])\n    target_col = \"Churn\"\n    X_test = test_df.drop(columns=[target_col])\n\
+          \    y_test = test_df[target_col]\n\n    with open(paths[\"preprocessor_path\"\
+          ], \"rb\") as f:\n        preprocessor = pickle.load(f)\n    with open(paths[\"\
+          model_path\"], \"rb\") as f:\n        model = pickle.load(f)\n\n    X_test_transformed\
+          \ = preprocessor.transform(X_test)\n    preds = model.predict(X_test_transformed)\n\
+          \    probs = model.predict_proba(X_test_transformed)[:, 1]\n\n    metrics\
+          \ = {\n        \"accuracy\": float(accuracy_score(y_test, preds)),\n   \
+          \     \"precision\": float(precision_score(y_test, preds, zero_division=0)),\n\
+          \        \"recall\": float(recall_score(y_test, preds, zero_division=0)),\n\
+          \        \"f1_score\": float(f1_score(y_test, preds, zero_division=0)),\n\
+          \        \"roc_auc\": float(roc_auc_score(y_test, probs)),\n    }\n\n  \
+          \  metrics_path = \"/tmp/artifacts/metrics.json\"\n    os.makedirs(os.path.dirname(metrics_path),\
+          \ exist_ok=True)\n    with open(metrics_path, \"w\") as f:\n        json.dump(metrics,\
+          \ f, indent=4)\n    return metrics_path\n\n"
+        image: mlops-customer-churn:latest
+    exec-feature-engineering:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - feature_engineering
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef feature_engineering(\n    preprocess_paths: str,\n) -> str:\n\
+          \    \"\"\"Scales numerics, one-hot encodes categoricals, saves preprocessor.\"\
+          \"\"\n    import json\n    import os\n    import pickle\n    import pandas\
+          \ as pd\n    from sklearn.compose import ColumnTransformer\n    from sklearn.preprocessing\
+          \ import OneHotEncoder, StandardScaler\n\n    with open(preprocess_paths,\
+          \ \"r\") as f:\n        paths = json.load(f)\n    train_df = pd.read_csv(paths[\"\
+          train_path\"])\n    test_df = pd.read_csv(paths[\"test_path\"])\n\n    target_col\
+          \ = \"Churn\"\n    X_train = train_df.drop(columns=[target_col])\n    X_test\
+          \ = test_df.drop(columns=[target_col])\n\n    numeric_cols = X_train.select_dtypes(include=[\"\
+          int64\", \"float64\"]).columns.tolist()\n    categorical_cols = X_train.select_dtypes(include=[\"\
+          object\"]).columns.tolist()\n\n    preprocessor = ColumnTransformer(\n \
+          \       transformers=[\n            (\"num\", StandardScaler(), numeric_cols),\n\
+          \            (\n                \"cat\",\n                OneHotEncoder(handle_unknown=\"\
+          ignore\", sparse_output=False),\n                categorical_cols,\n   \
+          \         ),\n        ]\n    )\n\n    X_train_transformed = preprocessor.fit_transform(X_train)\n\
+          \    X_test_transformed = preprocessor.transform(X_test)\n\n    train_out\
+          \ = pd.DataFrame(X_train_transformed)\n    train_out[target_col] = train_df[target_col].values\n\
+          \    test_out = pd.DataFrame(X_test_transformed)\n    test_out[target_col]\
+          \ = test_df[target_col].values\n\n    out_dir = \"/tmp/data/processed\"\n\
+          \    os.makedirs(out_dir, exist_ok=True)\n    train_features_path = f\"\
+          {out_dir}/train_features.csv\"\n    test_features_path = f\"{out_dir}/test_features.csv\"\
+          \n    preprocessor_path = \"/tmp/models/preprocessor.pkl\"\n    os.makedirs(os.path.dirname(preprocessor_path),\
+          \ exist_ok=True)\n\n    train_out.to_csv(train_features_path, index=False)\n\
+          \    test_out.to_csv(test_features_path, index=False)\n\n    with open(preprocessor_path,\
+          \ \"wb\") as f:\n        pickle.dump(preprocessor, f)\n\n    feature_paths\
+          \ = f\"{out_dir}/feature_paths.json\"\n    with open(feature_paths, \"w\"\
+          ) as f:\n        json.dump(\n            {\n                \"train_features_path\"\
+          : train_features_path,\n                \"test_features_path\": test_features_path,\n\
+          \                \"preprocessor_path\": preprocessor_path,\n           \
+          \     \"test_path\": paths[\"test_path\"],\n            },\n           \
+          \ f,\n        )\n    return feature_paths\n\n"
+        image: mlops-customer-churn:latest
+    exec-ingest-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - ingest_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef ingest_data(ingest_url: str) -> str:\n    \"\"\"Ingests the Telco\
+          \ churn dataset from a public URL.\"\"\"\n    import os\n    import pandas\
+          \ as pd\n\n    raw_path = \"/tmp/data/raw/telco_customer_churn.csv\"\n \
+          \   os.makedirs(os.path.dirname(raw_path), exist_ok=True)\n    df = pd.read_csv(ingest_url)\n\
+          \    df.to_csv(raw_path, index=False)\n    return raw_path\n\n"
+        image: mlops-customer-churn:latest
+    exec-preprocess-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess_data(raw_path: str) -> str:\n    \"\"\"Drops IDs,\
+          \ cleans charges, binarizes target, and splits data.\"\"\"\n    import os\n\
+          \    import json\n    import pandas as pd\n    from sklearn.model_selection\
+          \ import train_test_split\n\n    df = pd.read_csv(raw_path)\n\n    # Drop\
+          \ customerID\n    if \"customerID\" in df.columns:\n        df = df.drop(columns=[\"\
+          customerID\"])\n\n    # Clean TotalCharges\n    df[\"TotalCharges\"] = pd.to_numeric(df[\"\
+          TotalCharges\"], errors=\"coerce\")\n    df[\"TotalCharges\"] = df[\"TotalCharges\"\
+          ].fillna(0.0)\n\n    # Binarize target\n    df[\"Churn\"] = df[\"Churn\"\
+          ].map({\"Yes\": 1, \"No\": 0})\n\n    train_df, test_df = train_test_split(\n\
+          \        df, test_size=0.2, random_state=42, stratify=df[\"Churn\"]\n  \
+          \  )\n\n    train_path = \"/tmp/data/processed/train.csv\"\n    test_path\
+          \ = \"/tmp/data/processed/test.csv\"\n    os.makedirs(os.path.dirname(train_path),\
+          \ exist_ok=True)\n    train_df.to_csv(train_path, index=False)\n    test_df.to_csv(test_path,\
+          \ index=False)\n\n    paths_file = \"/tmp/data/processed/paths.json\"\n\
+          \    with open(paths_file, \"w\") as f:\n        json.dump({\"train_path\"\
+          : train_path, \"test_path\": test_path}, f)\n    return paths_file\n\n"
+        image: mlops-customer-churn:latest
+    exec-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model(feature_paths: str) -> str:\n    \"\"\"Trains an\
+          \ XGBoost classifier and saves the model.\"\"\"\n    import json\n    import\
+          \ os\n    import pickle\n    import pandas as pd\n    from xgboost import\
+          \ XGBClassifier\n\n    with open(feature_paths, \"r\") as f:\n        paths\
+          \ = json.load(f)\n\n    train_df = pd.read_csv(paths[\"train_features_path\"\
+          ])\n    target_col = \"Churn\"\n    X_train = train_df.drop(columns=[target_col])\n\
+          \    y_train = train_df[target_col]\n\n    model = XGBClassifier(\n    \
+          \    learning_rate=0.1,\n        max_depth=6,\n        n_estimators=100,\n\
+          \        random_state=42,\n        eval_metric=\"logloss\",\n    )\n   \
+          \ model.fit(X_train, y_train)\n\n    model_path = \"/tmp/models/model.pkl\"\
+          \n    os.makedirs(os.path.dirname(model_path), exist_ok=True)\n    with\
+          \ open(model_path, \"wb\") as f:\n        pickle.dump(model, f)\n\n    train_output\
+          \ = \"/tmp/models/train_output.json\"\n    with open(train_output, \"w\"\
+          ) as f:\n        json.dump(\n            {\n                \"model_path\"\
+          : model_path,\n                \"test_path\": paths[\"test_path\"],\n  \
+          \              \"preprocessor_path\": paths[\"preprocessor_path\"],\n  \
+          \          },\n            f,\n        )\n    return train_output\n\n"
+        image: mlops-customer-churn:latest
+    exec-validate-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - validate_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef validate_data(raw_path: str) -> str:\n    \"\"\"Validates raw\
+          \ data schema, value ranges, and target column.\"\"\"\n    import json\n\
+          \    import os\n    import pandas as pd\n\n    report_path = \"/tmp/artifacts/validation_report.json\"\
+          \n    os.makedirs(os.path.dirname(report_path), exist_ok=True)\n    df =\
+          \ pd.read_csv(raw_path)\n    report = {\n        \"shape\": list(df.shape),\n\
+          \        \"validation_passed\": len(df) >= 1000,\n    }\n    with open(report_path,\
+          \ \"w\") as f:\n        json.dump(report, f, indent=2)\n    if not report[\"\
+          validation_passed\"]:\n        raise ValueError(\"Validation failed: insufficient\
+          \ rows\")\n    return report_path\n\n"
+        image: mlops-customer-churn:latest
+pipelineInfo:
+  description: 'End-to-end ML pipeline: ingest, validate, preprocess, feature engineer,
+    train XGBoost, and evaluate.'
+  name: customer-churn-prediction-pipeline
+root:
+  dag:
+    tasks:
+      evaluate-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-evaluate-model
+        dependentTasks:
+        - train-model
+        inputs:
+          parameters:
+            train_output:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: train-model
+        taskInfo:
+          name: evaluate-model
+      feature-engineering:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-feature-engineering
+        dependentTasks:
+        - preprocess-data
+        inputs:
+          parameters:
+            preprocess_paths:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: preprocess-data
+        taskInfo:
+          name: feature-engineering
+      ingest-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-ingest-data
+        inputs:
+          parameters:
+            ingest_url:
+              componentInputParameter: ingest_url
+        taskInfo:
+          name: ingest-data
+      preprocess-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess-data
+        dependentTasks:
+        - ingest-data
+        - validate-data
+        inputs:
+          parameters:
+            raw_path:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: ingest-data
+        taskInfo:
+          name: preprocess-data
+      train-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-model
+        dependentTasks:
+        - feature-engineering
+        inputs:
+          parameters:
+            feature_paths:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: feature-engineering
+        taskInfo:
+          name: train-model
+      validate-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-validate-data
+        dependentTasks:
+        - ingest-data
+        inputs:
+          parameters:
+            raw_path:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: ingest-data
+        taskInfo:
+          name: validate-data
+  inputDefinitions:
+    parameters:
+      ingest_url:
+        defaultValue: https://raw.githubusercontent.com/alexeygrigorev/mlbookcamp-code/master/chapter-03-churn-prediction/WA_Fn-UseC_-Telco-Customer-Churn.csv
+        isOptional: true
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1

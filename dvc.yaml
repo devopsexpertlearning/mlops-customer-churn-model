@@ -1,0 +1,71 @@
+stages:
+  ingest:
+    cmd: .venv/bin/python src/customer_churn/ingest.py
+    deps:
+      - src/customer_churn/ingest.py
+      - configs/config.yaml
+    outs:
+      - data/raw/telco_customer_churn.csv
+
+  validate:
+    cmd: .venv/bin/python src/customer_churn/validate.py
+    deps:
+      - src/customer_churn/validate.py
+      - data/raw/telco_customer_churn.csv
+    outs:
+      - artifacts/validation_report.json
+
+  preprocess:
+    cmd: .venv/bin/python src/customer_churn/preprocess.py
+    deps:
+      - src/customer_churn/preprocess.py
+      - data/raw/telco_customer_churn.csv
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  features:
+    cmd: .venv/bin/python src/customer_churn/features.py
+    deps:
+      - src/customer_churn/features.py
+      - data/processed/train.csv
+      - data/processed/test.csv
+    outs:
+      - data/processed/train_features.csv
+      - data/processed/test_features.csv
+      - models/preprocessor.pkl
+
+  train:
+    cmd: .venv/bin/python src/customer_churn/train.py
+    params:
+      - train.learning_rate
+      - train.max_depth
+      - train.n_estimators
+      - train.random_state
+    deps:
+      - src/customer_churn/train.py
+      - data/processed/train_features.csv
+    outs:
+      - models/model.pkl
+      - artifacts/mlflow_run_id.txt
+
+  evaluate:
+    cmd: .venv/bin/python src/customer_churn/evaluate.py
+    deps:
+      - src/customer_churn/evaluate.py
+      - data/processed/test.csv
+      - models/model.pkl
+      - models/preprocessor.pkl
+      - artifacts/mlflow_run_id.txt
+    metrics:
+      - artifacts/metrics.json:
+          cache: false
+
+  register:
+    cmd: .venv/bin/python src/customer_churn/register_model.py
+    deps:
+      - src/customer_churn/register_model.py
+      - artifacts/metrics.json
+      - artifacts/mlflow_run_id.txt
+    outs:
+      - artifacts/registration_status.json

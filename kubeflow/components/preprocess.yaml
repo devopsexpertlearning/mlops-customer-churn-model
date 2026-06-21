@@ -1,0 +1,15 @@
+name: Preprocess Data
+description: Drops IDs, cleans charges, binarizes target, and splits into train/test CSVs.
+inputs:
+  - {name: raw_path, type: String, description: 'Path to the raw CSV dataset'}
+outputs:
+  - {name: train_path, type: String, description: 'Output path for the processed train split'}
+  - {name: test_path, type: String, description: 'Output path for the processed test split'}
+implementation:
+  container:
+    image: mlops-customer-churn:latest
+    command: [python, -m, customer_churn.preprocess]
+    env:
+      DATA_RAW_PATH: {inputValue: raw_path}
+      DATA_PROCESSED_TRAIN_PATH: {outputPath: train_path}
+      DATA_PROCESSED_TEST_PATH: {outputPath: test_path}

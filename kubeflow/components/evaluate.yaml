@@ -1,0 +1,19 @@
+name: Evaluate Model
+description: Evaluates model on test data, logs validation metrics and metrics JSON artifact to MLflow.
+inputs:
+  - {name: test_path, type: String, description: 'Path to test split dataset CSV'}
+  - {name: preprocessor_path, type: String, description: 'Path to preprocessor pkl file'}
+  - {name: model_path, type: String, description: 'Path to trained model pkl file'}
+  - {name: run_id_path, type: String, description: 'Path to file containing active mlflow run ID'}
+outputs:
+  - {name: metrics_path, type: String, description: 'Output path for generated metrics JSON'}
+implementation:
+  container:
+    image: mlops-customer-churn:latest
+    command: [python, -m, customer_churn.evaluate]
+    env:
+      DATA_PROCESSED_TEST_PATH: {inputValue: test_path}
+      MODEL_PREPROCESSOR_PATH: {inputValue: preprocessor_path}
+      MODEL_PATH: {inputValue: model_path}
+      MLFLOW_RUN_ID_PATH: {inputValue: run_id_path}
+      DATA_METRICS_PATH: {outputPath: metrics_path}

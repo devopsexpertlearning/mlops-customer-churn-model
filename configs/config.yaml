@@ -1,0 +1,26 @@
+project:
+  name: "mlops-customer-churn"
+  version: "0.1.0"
+
+data:
+  ingest_url: "https://raw.githubusercontent.com/alexeygrigorev/mlbookcamp-code/master/chapter-03-churn-prediction/WA_Fn-UseC_-Telco-Customer-Churn.csv"
+  raw_path: "data/raw/telco_customer_churn.csv"
+  processed_train_path: "data/processed/train.csv"
+  processed_test_path: "data/processed/test.csv"
+  features_train_path: "data/processed/train_features.csv"
+  features_test_path: "data/processed/test_features.csv"
+  target_col: "Churn"
+  metrics_path: "artifacts/metrics.json"
+
+model:
+  preprocessor_path: "models/preprocessor.pkl"
+  path: "models/model.pkl"
+  name: "xgboost-churn-classifier"
+
+monitoring:
+  prometheus_port: 8000
+
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "customer-churn-prediction"
+

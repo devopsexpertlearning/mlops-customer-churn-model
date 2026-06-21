@@ -1,0 +1,5 @@
+['remote "s3-remote"']
+    url = s3://dvc-cache
+    endpointurl = http://localhost:9000
+[core]
+    remote = s3-remote

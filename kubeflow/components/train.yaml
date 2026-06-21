@@ -1,0 +1,23 @@
+name: Train Model
+description: Trains an XGBoost classifier with specified hyperparameters and logs parameters/model to MLflow.
+inputs:
+  - {name: train_features_path, type: String, description: 'Path to the training features CSV'}
+  - {name: learning_rate, type: Float, description: 'Learning rate for XGBoost', default: 0.1}
+  - {name: max_depth, type: Integer, description: 'Max depth for XGBoost tree', default: 6}
+  - {name: n_estimators, type: Integer, description: 'Number of trees in forest', default: 100}
+  - {name: random_state, type: Integer, description: 'Random state seed', default: 42}
+outputs:
+  - {name: model_path, type: String, description: 'Output path for trained model pkl'}
+  - {name: run_id_path, type: String, description: 'Output path for logged mlflow run ID'}
+implementation:
+  container:
+    image: mlops-customer-churn:latest
+    command: [python, -m, customer_churn.train]
+    env:
+      DATA_FEATURES_TRAIN_PATH: {inputValue: train_features_path}
+      TRAIN_LEARNING_RATE: {inputValue: learning_rate}
+      TRAIN_MAX_DEPTH: {inputValue: max_depth}
+      TRAIN_N_ESTIMATORS: {inputValue: n_estimators}
+      TRAIN_RANDOM_STATE: {inputValue: random_state}
+      MODEL_PATH: {outputPath: model_path}
+      MLFLOW_RUN_ID_PATH: {outputPath: run_id_path}

@@ -1,0 +1,156 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: .venv/bin/python src/customer_churn/ingest.py
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: a44213d1a8dfb5c321fe434d1a6702af
+      size: 797
+    - path: src/customer_churn/ingest.py
+      hash: md5
+      md5: 9ca1da859b6dc2bc54dcb42d9befe34b
+      size: 1157
+    outs:
+    - path: data/raw/telco_customer_churn.csv
+      hash: md5
+      md5: 8cac3095fcf1fdc5d276164ba877e721
+      size: 971241
+  validate:
+    cmd: .venv/bin/python src/customer_churn/validate.py
+    deps:
+    - path: data/raw/telco_customer_churn.csv
+      hash: md5
+      md5: 8cac3095fcf1fdc5d276164ba877e721
+      size: 971241
+    - path: src/customer_churn/validate.py
+      hash: md5
+      md5: 9cd12a9688ec34fa8c8bbb4a6a2b57df
+      size: 4928
+    outs:
+    - path: artifacts/validation_report.json
+      hash: md5
+      md5: 5cde4a316078d94554dfc25dd75c3da2
+      size: 1203
+  preprocess:
+    cmd: .venv/bin/python src/customer_churn/preprocess.py
+    deps:
+    - path: data/raw/telco_customer_churn.csv
+      hash: md5
+      md5: 8cac3095fcf1fdc5d276164ba877e721
+      size: 971241
+    - path: src/customer_churn/preprocess.py
+      hash: md5
+      md5: c3dbfac9789b12fdcc782c78971f9a8a
+      size: 3251
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: fca03201454228b89a81d80b287b2e4a
+      size: 177529
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 1877d5d15e68216227c9cec79cbdc8a8
+      size: 708235
+  features:
+    cmd: .venv/bin/python src/customer_churn/features.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: fca03201454228b89a81d80b287b2e4a
+      size: 177529
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 1877d5d15e68216227c9cec79cbdc8a8
+      size: 708235
+    - path: src/customer_churn/features.py
+      hash: md5
+      md5: bb5b6835e9b45d0ac0da4efcdb64dae4
+      size: 4245
+    outs:
+    - path: data/processed/test_features.csv
+      hash: md5
+      md5: 433520cf69c3d46f5d6bd20b608cffaf
+      size: 329037
+    - path: data/processed/train_features.csv
+      hash: md5
+      md5: e279196cdf48b34285d84657f7124520
+      size: 1312460
+    - path: models/preprocessor.pkl
+      hash: md5
+      md5: d908aa3bffdf4731fc2661b9362380d7
+      size: 3169
+  train:
+    cmd: .venv/bin/python src/customer_churn/train.py
+    deps:
+    - path: data/processed/train_features.csv
+      hash: md5
+      md5: e279196cdf48b34285d84657f7124520
+      size: 1312460
+    - path: src/customer_churn/train.py
+      hash: md5
+      md5: bdf7157e0739b65d1096836eb4c661fa
+      size: 4196
+    params:
+      params.yaml:
+        train.learning_rate: 0.1
+        train.max_depth: 6
+        train.n_estimators: 100
+        train.random_state: 42
+    outs:
+    - path: artifacts/mlflow_run_id.txt
+      hash: md5
+      md5: 155decff1e56889b3c1e5fa0a3eb43fc
+      size: 32
+    - path: models/model.pkl
+      hash: md5
+      md5: aa35c6d6126c99b66b979fe29a653b63
+      size: 332463
+  evaluate:
+    cmd: .venv/bin/python src/customer_churn/evaluate.py
+    deps:
+    - path: artifacts/mlflow_run_id.txt
+      hash: md5
+      md5: 155decff1e56889b3c1e5fa0a3eb43fc
+      size: 32
+    - path: data/processed/test.csv
+      hash: md5
+      md5: fca03201454228b89a81d80b287b2e4a
+      size: 177529
+    - path: models/model.pkl
+      hash: md5
+      md5: aa35c6d6126c99b66b979fe29a653b63
+      size: 332463
+    - path: models/preprocessor.pkl
+      hash: md5
+      md5: d908aa3bffdf4731fc2661b9362380d7
+      size: 3169
+    - path: src/customer_churn/evaluate.py
+      hash: md5
+      md5: ccab2c8ef664459cc1c3efec5b265b54
+      size: 4469
+    outs:
+    - path: artifacts/metrics.json
+      hash: md5
+      md5: d7ac7e8e80f27b96eca1b1200121e4b0
+      size: 177
+  register:
+    cmd: .venv/bin/python src/customer_churn/register_model.py
+    deps:
+    - path: artifacts/metrics.json
+      hash: md5
+      md5: d7ac7e8e80f27b96eca1b1200121e4b0
+      size: 177
+    - path: artifacts/mlflow_run_id.txt
+      hash: md5
+      md5: 155decff1e56889b3c1e5fa0a3eb43fc
+      size: 32
+    - path: src/customer_churn/register_model.py
+      hash: md5
+      md5: 32618d7605f49fe3cbc0a329af0c4287
+      size: 5839
+    outs:
+    - path: artifacts/registration_status.json
+      hash: md5
+      md5: 90d32e4df3a8c340593b916e847a65f0
+      size: 327
